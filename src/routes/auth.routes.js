@@ -1,18 +1,13 @@
 import express from 'express';
-import { loginUser, registerUser } from '../controllers/auth.controller';
+import { loginUser, logoutUser, registerUser } from '../controllers/auth.controller.js';
 
 const router = express.Router();
 
 router.post('/register', (req, res) => {registerUser(req, res)});
 
-router.post('/login', (req, res) => {loginUser(req, res)});
+router.post('/login', (req, res) => {loginUser(req, res)}); 
 
-router.post('/logout', (req, res) => {
-	res.status(501).json({ message: 'Not implemented' });
-});
+router.post('/logout', (req, res) => {logoutUser(req, res)});
 
-router.get('/me', (req, res) => {
-	res.status(501).json({ message: 'Not implemented' });
-});
 
 export default router;
