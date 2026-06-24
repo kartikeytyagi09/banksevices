@@ -12,7 +12,7 @@ const accountSchema= new mongoose.Schema({
         type:String,
         enum:["ACTIVE", "FROZEN", "CLOSED"],
         default:"ACTIVE"
-    },
+    }, 
     currency:{
         type:String, 
         required:[true,"currency is required"],
@@ -24,4 +24,9 @@ const accountSchema= new mongoose.Schema({
 
 accountSchema.index({user:1}, {unique:true})
 
+// get balance property from other model (ledger);...
+// accountSchema.method.getBalance = await;
+
 const accountModel = mongoose.model("account", accountSchema);
+
+export default accountModel;
