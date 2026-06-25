@@ -6,11 +6,11 @@ import {
 	getAccountBalance,
 	updateAccountStatus,
 } from '../controllers/account.controllers.js';
-// import { protect } from '../middleware/auth.middleware.js';
+import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// router.use(protect);
+router.use(protect);
 
 router.post('/', createAccount);
 router.get('/', getUserAccounts);
