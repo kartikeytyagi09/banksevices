@@ -1,4 +1,5 @@
 import { jwt } from "jsonwebtoken";
+import User from "../models/user.model.js";
 
 async function protect(req, res, next) {
     const token= req.cookies.token || req.headers.authorization?.split(' ')[1];
@@ -6,6 +7,7 @@ async function protect(req, res, next) {
     if(!token){
         return res.status(401).json({message:"unauthorized"})
     }
+
 
     try{
         const decode= jwt.verify(token, process.env.JWT_SECRET);
@@ -21,3 +23,5 @@ async function protect(req, res, next) {
         return res.status(401).json({message:"unauthorized"})
     }
 }
+
+export { protect };
