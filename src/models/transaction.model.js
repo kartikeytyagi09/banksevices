@@ -3,12 +3,12 @@ import mongoose from "mongoose";
 const transactionSchema = new mongoose.Schema({
     fromAccount:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:account,
+        ref:'account',
         required:[true, "fromAccount is required"]
     },
     toAccount:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:account,
+        ref:'account',
         required:[true, "toAccount is required"]
     },
     amount:{

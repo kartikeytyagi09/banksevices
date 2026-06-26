@@ -55,7 +55,7 @@ const getAccount = async (req, res) => {
         if (!account) {
             return res.status(404).json({
                 success: false,
-                message: "Account not found"
+                message: "Account not found or does not belongs to you"
             });
         }
 
