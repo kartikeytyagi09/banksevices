@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import ledgerModel from './ledger.model';
 
 const accountSchema= new mongoose.Schema({
     user:{
@@ -24,8 +25,43 @@ const accountSchema= new mongoose.Schema({
 
 accountSchema.index({user:1}, {unique:true})
 
-// get balance property from other model (ledger);...
-// accountSchema.method.getBalance = await;
+accountSchema.methods.getBalance= async function(){
+    const balance = await ledgerModel.aggregate([
+        {$match:{account:this._id}},
+        {
+            $group:{
+                _id:null,
+                totalDebit:{
+                    $sum:{
+                        $cond:[
+                            {$eq:["$type", "DEBIT"]},
+                            "$amount",
+                            0
+                        ]
+                    }
+                },
+                totalCredit:{
+                    $sum:{
+                        $cond:[
+                            {$eq:["$type", "CREDIT"]},
+                            "$amount",
+                            0
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            $project:{
+                _id:0,
+                balance:{$subtract:["$totalCredit", "$totalDebit"]}
+            }
+        }
+    ])
+
+    return balance[0]?.balance || 0;
+}
+
 
 const accountModel = mongoose.model("account", accountSchema);
 
