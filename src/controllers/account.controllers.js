@@ -5,7 +5,8 @@ const createAccount = async (req, res) => {
     try {
         const account = await accountModel.create({
             user: req.user._id,
-            currency: req.body.currency || "INR"
+            currency: req.body.currency || "INR",
+            balance:0   
         });
 
         return res.status(201).json({
@@ -89,12 +90,10 @@ const getAccountBalance = async (req, res) => {
             });
         }
 
-        const balance = await account.getBalance();
-
         return res.status(200).json({
             success: true,
             accountId: account._id,
-            balance
+            balance: account.balance
         });
     } catch (error) {
         console.log(error);
