@@ -14,20 +14,13 @@ const createTransaction = async (req, res) => {
         return res.status(400).json({ message: "fromAccount, toAccount, amount and idempotencyKey are required" });
     }
 
-    const fromUserAccount = await accountModel.findOne({
-        _id: fromAccount
-    });
-
-    const toUserAccount = await accountModel.findOne({
-        _id: toAccount
-    });
-
-    if (!fromUserAccount || !toUserAccount) {
+    if (typeof amount !== "number" || amount <= 0) {
         return res.status(400).json({
             success: false,
-            message: "from and to account are missing or invalid"
-        })
+            message: "amount must be a positive number"
+        });
     }
+
 
     //2 validate if the transaction with the same idempotencyKey already exists
 
@@ -66,30 +59,52 @@ const createTransaction = async (req, res) => {
         }
     }
 
-    //3 check account status
 
-    if (fromUserAccount.status !== "ACTIVE" || toUserAccount.status !== "ACTIVE") {
-        return res.status(400).json({
-            success: false,
-            message: "Both accounts must be active to perform a transaction"
-        })
-    }
+    //3 start sesession and transaction    
+    const session = await mongoose.startSession()
+    session.startTransaction()
 
-    //4 check if the from account has sufficient balance
-    const balance = await fromUserAccount.getBalance();
-    if (balance < amount) {
-        return res.status(400).json({
-            success: false,
-            message: `Insufficient balance in the from account, current balance: ${balance}`
-        })
-    }
-
-    let transaction;
     try {
-        //5 create a new transaction with status PENDING
-        const session = await mongoose.startSession()
-        session.startTransaction()
 
+        // ─── 4. Read Accounts
+        const [fromUserAccount, toUserAccount] = await Promise.all([
+            accountModel.findById(fromAccount).session(session),
+            accountModel.findById(toAccount).session(session)
+        ]);
+
+        if (!fromUserAccount || !toUserAccount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(404).json({
+                success: false,
+                message: "One or both accounts not found"
+            });
+        }
+
+        //5 check account status
+
+        if (fromUserAccount.status !== "ACTIVE" || toUserAccount.status !== "ACTIVE") {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({
+                success: false,
+                message: "Both accounts must be active to perform a transaction"
+            })
+        }
+
+        //6 check balance
+
+        if (fromUserAccount.balance < amount) {
+            await session.abortTransaction();
+            session.endSession();
+            return res.status(400).json({
+                success: false,
+                message: "Insufficient balance in the fromAccount"
+            })
+        }
+
+
+        //7 create a new transaction with status PENDING
         const docs = await transactionModel.create(
             [{
                 fromAccount,
@@ -100,20 +115,15 @@ const createTransaction = async (req, res) => {
             }],
             { session }
         );
-
         const transaction = docs[0];
 
-
+        //8 debit and credit ledger entries
         const debitLedgerEntry = await ledgerModel.create([{
             account: fromAccount,
             amount: amount,
             transaction: transaction._id,
             type: "DEBIT"
         }], { session })
-
-        await (() => {
-            return new Promise((resolve) => setTimeout(resolve, 5* 1000));
-        })()
 
         const creditLedgerEntry = await ledgerModel.create([{
             account: toAccount,
@@ -122,30 +132,50 @@ const createTransaction = async (req, res) => {
             type: "CREDIT"
         }], { session })
 
-        await transactionModel.findOneAndUpdate(
-            { _id: transaction._id },
-            { status: "COMPLETED" },
-            { session }
-        )
+        // await (() => {
+        //     return new Promise((resolve) => setTimeout(resolve, 5 * 1000));
+        // })()
 
+        // 9 Update Sender Balance
+        await accountModel.updateOne(
+            { _id: fromAccount },
+            { $inc: { balance: -amount } },
+            { session }
+        );
+
+        //11 Update Receiver Balance
+        await accountModel.updateOne(
+            { _id: toAccount },
+            { $inc: { balance: amount } },
+            { session }
+        );
+
+        // 12. Update Transaction 
+        const completedTransaction = await transactionModel.findByIdAndUpdate(
+            transaction._id,
+            { status: "SUCCESS" },
+            { session, new: true }
+        );
 
         await session.commitTransaction()
         session.endSession()
 
+        return res.status(201).json({
+            success: true,
+            message: "Transaction completed successfully",
+            transaction: completedTransaction
+        })
+
 
     } catch (error) {
-        console.error("Error creating transaction:", error);    
+        console.error("Error creating transaction:", error);
         return res.status(400).json({
+            success: false,
             message: "Transaction is Pending due to some issue, please retry after sometime",
         })
     }
 
-    
-    return res.status(201).json({
-        message: "Transaction completed successfully",
-        transaction: transaction
-    })
 
-}   
+}
 
 export default createTransaction;
