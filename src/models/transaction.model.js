@@ -4,7 +4,8 @@ const transactionSchema = new mongoose.Schema({
     fromAccount:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'account',
-        required:[true, "fromAccount is required"]
+        required:false,
+        default:null
     },
     toAccount:{
         type:mongoose.Schema.Types.ObjectId,
